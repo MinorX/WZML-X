@@ -289,25 +289,25 @@ def all_debrid(url: str, tor=False):
         
         contents = {'links': []}
         while len(contents['links']) == 0:
-    _res = cget('GET', f"https://api.alldebrid.com/v4/magnet/status?agent=myAppName&apikey={config_dict['ALL_DEBRID_API']}&id={_id}").json()
-    if _res['status'] == "success":
-        # Accessing 'links' directly within 'magnets'
-        contents['links'] = _res['data']['magnets']['links']
-    else:
-        raise DirectDownloadLinkException(f"ERROR: {_res['error']['message']}")
-    sleep(0.5)
+            _res = cget('GET', f"https://api.alldebrid.com/v4/magnet/status?agent=myAppName&apikey={config_dict['ALL_DEBRID_API']}&id={_id}").json()
+            if _res['status'] == "success":
+             # Accessing 'links' directly within 'magnets'
+                contents['links'] = _res['data']['magnets']['links']
+            else:
+                raise DirectDownloadLinkException(f"ERROR: {_res['error']['message']}")
+            sleep(0.5)
 
-details = {'contents': [], 'title': contents['filename'], 'total_size': contents['size']}
+        details = {'contents': [], 'title': contents['filename'], 'total_size': contents['size']}
 
-for file_info in contents['links']:
+        for file_info in contents['links']:
     # Assuming __unlock function is not needed
-    item = {
-        "filename": file_info['filename'],
-        "url": file_info['link'],  # Directly using 'link' from 'file_info'
-    }
-    details['contents'].append(item)
+            item = {
+                "filename": file_info['filename'],
+                "url": file_info['link'],  # Directly using 'link' from 'file_info'
+            }
+            details['contents'].append(item)
 
-return details
+        return details
     
         
     try:
