@@ -261,49 +261,65 @@ def direct_link_generator(link):
         raise DirectDownloadLinkException(f'No Direct link function found for {link}')
 
 
-def __addMagnet(magnet):
-    cget = create_scraper().request
-    resp = cget('GET', f"https://api.alldebrid.com/v4/magnet/instant?agent=myAppName&apikey={config_dict['ALL_DEBRID_API']}&magnets[]={quote(magnet)}").json()
-    if resp['status'] != 'success' or resp['data']['magnets'][0]['instant'] != True:
-        return magnet
-    resp = cget('GET', f"https://api.alldebrid.com/v4/magnet/upload?agent=myAppName&apikey={config_dict['ALL_DEBRID_API']}&magnets[]={quote(magnet)}").json()
-    if resp['status'] == 'success':
-        _id = resp['data']['magnets'][0]['id']
-    else:
-        raise DirectDownloadLinkException(f"ERROR: [{resp['error']['code']}] {resp['error']['message']}")
+def all_debrid(url: str, tor=False):
+    """ All-Debrid Link Extractor (VPN must)
+    Based on All-Debrid v4 API"""
     
-    contents = {'links': []}
-    while len(contents['links']) == 0:
-        _res = cget('GET', f"https://api.alldebrid.com/v4/magnet/status?agent=myAppName&apikey={config_dict['ALL_DEBRID_API']}&id={_id}").json()
-        if _res['status'] == "success":
-            contents = _res['data']['magnets']
+    def __unlock(url, tor=False):
+        cget = create_scraper().request
+        resp = cget('GET', f"https://api.alldebrid.com/v4/link/unlock?agent=myAppName&apikey={config_dict['ALL_DEBRID_API']}&link={quote(url)}").json()
+        if resp['status'] == 'success':
+            if tor:
+                return (_res['data']['filename'], _res['data']['link'])
+            else:
+                return resp['data']['link']
         else:
-            raise DirectDownloadLinkException(f"ERROR: {_res['error']['message']}")
-        sleep(0.5)
+            raise DirectDownloadLinkException(f"ERROR: [{resp['error']['code']}] {resp['error']['message']}")
     
-    details = {'contents': [], 'title': contents['filename'], 'total_size': contents['size']}
-
-    for file_info in contents['links']:
-        # Assuming __unlock function is not needed
-        item = {
-            "filename": file_info['filename'],
-            "url": file_info['link'],  # Directly using 'link' from 'file_info'
-        }
-        details['contents'].append(item)
-
-    return details
-
-    
-try:
-    if tor:
-        details = __addMagnet(url)
+    def __addMagnet(magnet):
+        cget = create_scraper().request
+        resp = cget('GET', f"https://api.alldebrid.com/v4/magnet/instant?agent=myAppName&apikey={config_dict['ALL_DEBRID_API']}&magnets[]={quote(magnet)}").json()
+        if resp['status'] != 'success' or resp['data']['magnets'][0]['instant'] != True:
+            return magnet
+        resp = cget('GET', f"https://api.alldebrid.com/v4/magnet/upload?agent=myAppName&apikey={config_dict['ALL_DEBRID_API']}&magnets[]={quote(magnet)}").json()
+        if resp['status'] == 'success':
+            _id = resp['data']['magnets'][0]['id']
+        else:
+            raise DirectDownloadLinkException(f"ERROR: [{resp['error']['code']}] {resp['error']['message']}")
+        
+        contents = {'links': []}
+        while len(contents['links']) == 0:
+    _res = cget('GET', f"https://api.alldebrid.com/v4/magnet/status?agent=myAppName&apikey={config_dict['ALL_DEBRID_API']}&id={_id}").json()
+    if _res['status'] == "success":
+        # Accessing 'links' directly within 'magnets'
+        contents['links'] = _res['data']['magnets']['links']
     else:
-        return __unlock(url)
-except Exception as e:
-    raise DirectDownloadLinkException(e)
-if isinstance(details, dict) and len(details['contents']) == 1:
-    return details['contents'][0]['url']
+        raise DirectDownloadLinkException(f"ERROR: {_res['error']['message']}")
+    sleep(0.5)
+
+details = {'contents': [], 'title': contents['filename'], 'total_size': contents['size']}
+
+for file_info in contents['links']:
+    # Assuming __unlock function is not needed
+    item = {
+        "filename": file_info['filename'],
+        "url": file_info['link'],  # Directly using 'link' from 'file_info'
+    }
+    details['contents'].append(item)
+
 return details
+    
+        
+    try:
+        if tor:
+            details = __addMagnet(url)
+        else:
+            return __unlock(url)
+    except Exception as e:
+        raise DirectDownloadLinkException(e)
+    if isinstance(details, dict) and len(details['contents']) == 1:
+        return details['contents'][0]['url']
+    return details
 
 
 def real_debrid(url: str, tor=False):
